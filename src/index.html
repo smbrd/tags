@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Web Component Demo</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dynamic Web Component Demo</h1>
+    
+    <dynamic-component
+        endpoint="/data"
+        config-endpoint="/config">
+    </dynamic-component>
+
+    <script type="module">
+        // Example of handling custom events
+        document.querySelector('dynamic-component').addEventListener('dynamic-action', (e) => {
+            console.log('Custom action triggered:', e.detail);
+        });
+    </script>
+    <script src="bundle.js"></script>
+</body>
+</html> 

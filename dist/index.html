@@ -1,0 +1,4 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dynamic Web Component Demo</title></head><body><h1>Dynamic Web Component Demo</h1><dynamic-component endpoint="http://localhost:3000/data" config-endpoint="http://localhost:3000/config"></dynamic-component><script type="module">// Example of handling custom events
+        document.querySelector('dynamic-component').addEventListener('dynamic-action', (e) => {
+            console.log('Custom action triggered:', e.detail);
+        });</script><script src="bundle.js"></script><script defer="defer" src="bundle.js"></script></body></html>
