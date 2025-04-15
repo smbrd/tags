@@ -7,6 +7,7 @@ app.use(cors());
 // Mock configuration endpoint
 app.get('/config', (req, res) => {
   res.json({
+    componentName: 'dynamic-component',
     elements: [
       {
         type: 'text',

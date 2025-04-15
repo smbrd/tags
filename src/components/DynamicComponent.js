@@ -5,7 +5,11 @@ export class DynamicComponent extends LitElement {
     data: { type: Array },
     config: { type: Object },
     loading: { type: Boolean },
-    error: { type: String }
+    error: { type: String },
+    componentName: { type: String },
+    dataEndpoint: { type: String },
+    configEndpoint: { type: String },
+    maxRetries: { type: Number }
   };
 
   static styles = css`
@@ -58,12 +62,33 @@ export class DynamicComponent extends LitElement {
     this.config = {};
     this.loading = true;
     this.error = '';
+    this.dataEndpoint = '/data';
+    this.configEndpoint = '/config';
+    this.maxRetries = 3;
+    this.buttonListeners = new WeakMap(); // Track which buttons already have listeners
   }
 
   connectedCallback() {
     super.connectedCallback();
     this.loadConfiguration().then(() => this.loadData());
     this.observeButton();
+    
+    // Add event listener for dynamic actions
+    document.addEventListener('dynamic-action', (e) => {
+      if (e.detail.componentName === this.componentName) {
+        console.log('Action triggered for component:', this.componentName, e.detail);
+      }
+    });
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    // Clean up event listeners
+    this.buttonListeners.forEach((handler, button) => {
+      button.removeEventListener('click', handler);
+    });
+    this.buttonListeners.clear();
+    document.removeEventListener('dynamic-action', this.handleDynamicAction);
   }
 
   observeButton() {
@@ -94,34 +119,83 @@ export class DynamicComponent extends LitElement {
     buttons.forEach(button => {
       const buttonText = button.textContent.toLowerCase();
       if (buttonTextPatterns.some(pattern => buttonText.includes(pattern))) {
-        // Add our new click handler that will run after the original one
-        button.addEventListener('click', (event) => {
-          console.log('click detected');
-        });
+        // Only add listener if this button doesn't already have one
+        if (!this.buttonListeners.has(button)) {
+          const clickHandler = (event) => {
+            console.log('click detected');
+          };
+          button.addEventListener('click', clickHandler);
+          this.buttonListeners.set(button, clickHandler);
+        }
       }
     });
   }
 
-  async loadConfiguration() {
+  async loadConfiguration(retryCount = 0) {
     try {
-      const response = await fetch('/config');
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const response = await fetch(this.configEndpoint);
+      
+      if (response.status === 504) {
+        if (retryCount < this.maxRetries) {
+          console.log(`Retrying config fetch (attempt ${retryCount + 1}/${this.maxRetries})...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return this.loadConfiguration(retryCount + 1);
+        } else {
+          throw new Error('Server timeout after multiple retries');
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       this.config = await response.json();
+      this.componentName = this.config.componentName || 'dynamic-component';
+      this.error = '';
     } catch (error) {
       this.error = 'Failed to load configuration: ' + error.message;
       this.loading = false;
+      
+      if (retryCount < this.maxRetries) {
+        console.log(`Retrying config fetch (attempt ${retryCount + 1}/${this.maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return this.loadConfiguration(retryCount + 1);
+      }
     }
   }
 
-  async loadData() {
+  async loadData(retryCount = 0) {
     try {
-      const response = await fetch('/data');
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const response = await fetch(this.dataEndpoint);
+      
+      if (response.status === 504) {
+        if (retryCount < this.maxRetries) {
+          console.log(`Retrying data fetch (attempt ${retryCount + 1}/${this.maxRetries})...`);
+          // Wait for 2 seconds before retrying
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return this.loadData(retryCount + 1);
+        } else {
+          throw new Error('Server timeout after multiple retries');
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       this.data = await response.json();
       this.loading = false;
+      this.error = '';
     } catch (error) {
       this.error = 'Failed to load data: ' + error.message;
       this.loading = false;
+      
+      if (retryCount < this.maxRetries) {
+        console.log(`Retrying data fetch (attempt ${retryCount + 1}/${this.maxRetries})...`);
+        // Wait for 2 seconds before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return this.loadData(retryCount + 1);
+      }
     }
   }
 
@@ -136,7 +210,11 @@ export class DynamicComponent extends LitElement {
         break;
       case 'custom':
         const event = new CustomEvent('dynamic-action', {
-          detail: { action, item },
+          detail: { 
+            action, 
+            item,
+            componentName: this.componentName 
+          },
           bubbles: true,
           composed: true
         });
@@ -200,6 +278,19 @@ if (!customElements.get('dynamic-component')) {
   customElements.define('dynamic-component', DynamicComponent);
 }
 
-document.querySelector('dynamic-component').addEventListener('dynamic-action', (e) => {
-    console.log('Action triggered:', e.detail);
+// Initialize the component with event listener
+document.addEventListener('DOMContentLoaded', () => {
+  const component = document.querySelector('dynamic-component');
+  if (component) {
+    // The component name will be set after loading the config
+    component.addEventListener('config-loaded', () => {
+      if (component.componentName && component.componentName !== 'dynamic-component') {
+        // Create a new custom element with the name from config
+        customElements.define(component.componentName, DynamicComponent);
+        // Replace the old element with the new one
+        const newElement = document.createElement(component.componentName);
+        component.parentNode.replaceChild(newElement, component);
+      }
+    });
+  }
 }); 
