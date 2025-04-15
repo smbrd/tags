@@ -19,18 +19,16 @@
 </head>
 <body>
     <h1>Dynamic Web Component Demo</h1>
-    
-    <dynamic-component
-        endpoint="/data"
-        config-endpoint="/config">
-    </dynamic-component>
 
-    <script type="module">
+    <script src="bundle.js" type="module">
         // Example of handling custom events
         document.querySelector('dynamic-component').addEventListener('dynamic-action', (e) => {
             console.log('Custom action triggered:', e.detail);
         });
     </script>
-    <script src="bundle.js"></script>
+    <dynamic-component></dynamic-component>
+    <button onclick="window.open('https:\/\/www.google.com','_self')">Add to bag</button>
+    <button onclick="window.open('https:\/\/www.google.com','_self')">Add to cart</button>
+
 </body>
-</html> 
+</html>

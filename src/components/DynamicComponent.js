@@ -2,8 +2,6 @@ import { LitElement, html, css } from 'lit';
 
 export class DynamicComponent extends LitElement {
   static properties = {
-    endpoint: { type: String },
-    configEndpoint: { type: String, attribute: 'config-endpoint' },
     data: { type: Array },
     config: { type: Object },
     loading: { type: Boolean },
@@ -64,28 +62,52 @@ export class DynamicComponent extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
-    console.log('Connected callback - endpoints:', {
-      endpoint: this.endpoint,
-      configEndpoint: this.configEndpoint
+    this.loadConfiguration().then(() => this.loadData());
+    this.observeButton();
+  }
+
+  observeButton() {
+    const observer = new MutationObserver((mutations) => {
+      this.findAndAttachButtonListener();
     });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    this.findAndAttachButtonListener();
+  }
+
+  findAndAttachButtonListener() {
+    const buttons = document.querySelectorAll('button');
+    const buttonTextPatterns = [
+      'add to cart',
+      'add to bag',
+      'add to basket',
+      'buy now',
+      'add to cart now',
+      'get yours',
+      'drop into cart'
+    ];
     
-    if (this.endpoint && this.configEndpoint) {
-      this.loadConfiguration().then(() => this.loadData());
-    } else {
-      this.error = `Endpoint or configEndpoint not provided. Endpoint: ${this.endpoint}, ConfigEndpoint: ${this.configEndpoint}`;
-      this.loading = false;
-    }
+    buttons.forEach(button => {
+      const buttonText = button.textContent.toLowerCase();
+      if (buttonTextPatterns.some(pattern => buttonText.includes(pattern))) {
+        // Add our new click handler that will run after the original one
+        button.addEventListener('click', (event) => {
+          console.log('click detected');
+        });
+      }
+    });
   }
 
   async loadConfiguration() {
     try {
-      console.log('Loading configuration from:', this.configEndpoint);
-      const response = await fetch(this.configEndpoint);
+      const response = await fetch('/config');
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       this.config = await response.json();
-      console.log('Configuration loaded:', this.config);
     } catch (error) {
-      console.error('Failed to load configuration:', error);
       this.error = 'Failed to load configuration: ' + error.message;
       this.loading = false;
     }
@@ -93,14 +115,11 @@ export class DynamicComponent extends LitElement {
 
   async loadData() {
     try {
-      console.log('Loading data from:', this.endpoint);
-      const response = await fetch(this.endpoint);
+      const response = await fetch('/data');
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       this.data = await response.json();
-      console.log('Data loaded:', this.data);
       this.loading = false;
     } catch (error) {
-      console.error('Failed to load data:', error);
       this.error = 'Failed to load data: ' + error.message;
       this.loading = false;
     }
